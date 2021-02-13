@@ -387,6 +387,148 @@ summary {
 <p>The Gierlinkski Dataset can be downloaded via the script linked below.</p>
 <p><a href="https://raw.githubusercontent.com/jakesauter/ANGSD_STAR_BWA/main/scripts/slurm_gierlinski_download_and_qc_script.sh">slurm_gierlinski_download_and_qc_script.sh</a></p>
 </div>
+<div id="running-bwa-on-one-sample" class="section level3">
+<h3><strong>Running BWA on One Sample</strong></h3>
+<p>We will choose <code>ERR458497.fastq.gz</code> (<code>WT_1</code>, <code>Lane 5</code>) as our sample to run as input to BWA.</p>
+<p>In order to run BWA, we first need the <code>fasta</code> file that contains the reference genome we are aligning to. For this exercise this has been obtained for us and we can copy from <code>/home/luce/angsd/referenceGenomes/sacCer3.fa</code></p>
+<p>Starting from the directory that you would like to perform this analysis in:</p>
+<pre class="bash"><code>user=$(whoami)
+gierlinski_dataset=&quot;/athena/angsd/scratch/${user}/gierlinski&quot;
+reference_file=&quot;${gierlinski_dataset}/sacCer3_ref/sacCer3.fa&quot;
+
+cp /home/luce/angsd/referenceGenomes/sacCer3.fa $reference_file </code></pre>
+<p>We then need to build our BWA reference:</p>
+<pre class="bash"><code>bwa_index_file=&quot;${gierlinski_dataset}/sacCer3_BWAindex/sacCer3&quot;
+reference_file=&quot;${gierlinski_dataset}/sacCer3_ref/sacCer3.fa&quot;
+
+bwa index -p $bwa_index_file $reference_file</code></pre>
+<p>Not that we have the BWA index generated, we can use <code>bwa mem</code> for performing an alignment on our file of interest.</p>
+<pre class="bash"><code>fastq_prefix=&quot;ERR458497&quot;
+sample_class=&quot;WT_1&quot;
+fastq_file=&quot;${gierlinski_dataset}/fastqs/${sample_class}/${fastq_prefix}.fastq.gz&quot;
+alignment_file=&quot;${gierlinski_dataset}/bwa_alignments/${fastq_prefix}.bwa.sam&quot;
+
+bwa mem $bwa_index_file $fastq_file &gt; $alignment_file</code></pre>
+<p>A slurm-submittable script for performing these actions can be found below.</p>
+<pre class="bash"><code>#! /bin/bash -l
+
+#SBATCH  --partition=angsd_class
+#SBATCH  --nodes=1
+#SBATCH  --ntasks=1
+#SBATCH  --job-name=gierlinski_bwa
+#SBATCH  --time=06:00:00    # HH/MM/SS
+#SBATCH  --mem=16G 
+#SBATCH --output=%x.%j.out
+#SBATCH --error=%x.%j.err
+
+spack load bwa@0.7.15% gcc@6.3.0
+
+user=$(whoami)
+fastq_prefix=&quot;ERR458497&quot;
+sample_class=&quot;WT_1&quot;
+fastq_file=&quot;${gierlinski_dataset}/fastqs/${sample_class}/${fastq_prefix}.fastq.gz&quot;
+gierlinski_dataset=&quot;/athena/angsd/scratch/${user}/gierlinski&quot;
+alignment_file=&quot;${gierlinski_dataset}/bwa_alignments/${fastq_prefix}.bwa.sam&quot;
+bwa_index_file=&quot;${gierlinski_dataset}/sacCer3_BWAindex/sacCer3&quot;
+reference_file=&quot;${gierlinski_dataset}/sacCer3_ref/sacCer3.fa&quot;
+
+mkdir -p `dirname $reference_file`
+mkdir -p `dirname $alignment_file`
+mkdir -p `dirname $bwa_index_file`
+cp /home/luce/angsd/referenceGenomes/sacCer3.fa $reference_file 
+bwa index -p $bwa_index_file $reference_file
+bwa mem $bwa_index_file $fastq_file &gt; $alignment_file</code></pre>
+</div>
+<div id="running-star-on-the-same-sample" class="section level3">
+<h3><strong>Running STAR on the Same Sample</strong></h3>
+<pre class="bash"><code>#! /bin/bash -l
+
+#SBATCH  --partition=angsd_class
+#SBATCH  --nodes=1
+#SBATCH  --ntasks=1
+#SBATCH  --job-name=gierlinski_star
+#SBATCH  --time=06:00:00    # HH/MM/SS
+#SBATCH  --mem=16G 
+#SBATCH --output=%x.%j.out
+#SBATCH --error=%x.%j.err
+
+spack load star@2.7.0e
+spack load samtools@1.9% gcc@6.3.0
+
+user=$(whoami)
+fastq_prefix=&quot;ERR458497&quot;
+sample_class=&quot;WT_1&quot;
+fastq_file=&quot;${gierlinski_dataset}/fastqs/${sample_class}/${fastq_prefix}.fastq.gz&quot;
+gierlinski_dataset=&quot;/athena/angsd/scratch/${user}/gierlinski&quot;
+star_index_dir=&quot;${gierlinski_dataset}/sacCer3_STARindex&quot;
+reference_file=&quot;${gierlinski_dataset}/sacCer3_ref/sacCer3.fa&quot;
+gtf_reference_file=&quot;${gierlinski_dataset}/sacCer3_ref/sacCer3.sgd.gtf&quot;
+alignment_file=&quot;${gierlinski_dataset}/star_alignments/${fastq_prefix}.star.bam&quot;
+samtools_qc_dir=&quot;${gierlinski_dataset}/samtools_qc&quot;
+
+mkdir -p $star_index_dir
+mkdir -p $samtools_qc_dir
+mkdir -p `dirname $reference_file`
+mkdir -p `dirname $alignment_file`
+
+cp /home/luce/angsd/referenceGenomes/sacCer3.fa $reference_file 
+cp /home/luce/angsd/referenceGenomes/sacCer3.sgd.gtf $gtf_reference_file
+
+STAR --runMode  genomeGenerate \
+     --runThreadN 6 \
+     --genomeDir  $star_index_dir \
+     --genomeFastaFiles  $reference_file \
+     --sjdbGTFfile  $gtf_reference_file \
+     --sjdbOverhang  99
+  
+STAR --runMode  alignReads \
+  --runThreadN 6 \
+  --genomeDir $star_index_dir \
+  --readFilesIn $fastq_file \
+  --readFilesCommand zcat \
+  --outFileNamePrefix $alignment_file \
+  --outSAMtype BAM SortedByCoordinate
+
+alignment_path=$(dirname $alignment_file)
+alignment_file=$(ls ${alignment_path}/*.bam)
+alignment_base=$(basename $alignment_file)
+
+samtools sort $alignment_file -o &quot;${alignment_file}.sorted&quot;
+
+samtools stats $alignment_file  &gt; $samtools_qc_dir/${alignment_base}.stats
+samtools flagstat $alignment_file &gt; $samtools_qc_dir/${alignment_base}.flagstats</code></pre>
+</div>
+</div>
+<div id="subset-only-chromosome-i-aligned-reads" class="section level2">
+<h2><strong>Subset Only Chromosome I Aligned Reads</strong></h2>
+<pre class="bash"><code>samtools view ERR458497.bwa.bamAligned.sortedByCoord.out.bam | grep chrI &gt; ERR458497.bwa.chrI.sam
+
+samtools view ERR458497.bwa.bamAligned.sortedByCoord.out.bam | grep chrI &gt; ERR458497.bwa.chrI.sam
+</code></pre>
+</div>
+<div id="bwa-vs-star" class="section level2">
+<h2><strong>BWA vs STAR</strong></h2>
+<p>Compare the output from BWA and STAR, and summarize any results or differences.</p>
+<pre><code>Which optional SAM fields does STAR add and what do they represent? (1pt)
+Which optional SAM fields does BWA add and what do they represent? (1pt)</code></pre>
+</div>
+<div id="bamqc" class="section level2">
+<h2><strong>BamQC</strong></h2>
+<p>Run bamqc on your BAM files (Note: this is a tool that’s not available in spack, but you can use it via /softlib/apps/EL7/BamQC/bin/bamqc after logging on to a compute node). You will need to figure out how to run this on your own (hint: /softlib/apps/EL7/BamQC/bin/bamqc –help).</p>
+<pre><code>Describe 3 differences between the bamqc results for both the BWA and the STAR output files. (3pt)</code></pre>
+<pre class="bash"><code>/softlib/apps/EL7/BamQC/bin/bamqc --help </code></pre>
+</div>
+<div id="alignment-score-vs-mapping-quality" class="section level2">
+<h2><strong>Alignment Score vs Mapping Quality</strong></h2>
+<p>Explain the difference between alignment score and mapping quality in SAM/BAM files. How does the interpretation of the mapping quality field differ between STAR and BWA</p>
+</div>
+<div id="multi-mapping-reads-vs-split-reads" class="section level2">
+<h2><strong>Multi-Mapping Reads vs Split-Reads</strong></h2>
+<p>What is the difference between a multi-mapping read, and a split read? Find a read that has been split in STAR. How did BWA handle the mapping of that read? (2pt)</p>
+</div>
+<div id="removing-unampped-reads-from-bwa" class="section level2">
+<h2><strong>Removing Unampped Reads From BWA</strong></h2>
+<p>How can you remove the unmapped reads from the BWA output? (hint: go back to the notes where FLAG values were explained) (1pt)</p>
 </div>
 
 
