@@ -384,44 +384,8 @@ summary {
 <p>Write a script that will: (3pt) run BWA on one of the samples from the Gierlinski dataset run STAR on the same sample Remember those three checks after read alignment: Is it a BAM file? Is it sorted? Is it indexed?</p>
 <div id="retrieving-the-gierlinkski-dataset" class="section level3">
 <h3><strong>Retrieving the Gierlinkski Dataset</strong></h3>
-<p>The Gierlinkski Dataset can be downloaded via the script below.</p>
-<pre class="bash"><code>user=$(whoami)
-dataset_dir=&quot;/athena/angsd/scratch/${user}/gierlinkski&quot;
-
-mkdir -p $dataset_dir ; cd $dataset_dir
-
-if [ $dataset_dir != $PWD ] ; then
-  echo &quot;Aborting, not in the correct directory&quot;
-fi
-
-if [ $dataset_dir == $PWD ] ; then
-
-  echo -e &quot;\n\n\nDownloading Data to ${dataset_dir}...\n\n\n&quot;
-
-  wget &quot;https://ndownloader.figshare.com/files/2194841&quot; --output-document=sample_mapping.tsv
-  
-  wget &quot;https://www.ebi.ac.uk/ena/portal/api/filereport?accession=PRJEB5348&amp;result=read_run&amp;fields=run_accession,fastq_ftp&amp;format=tsv&amp;download=true&quot; --output-document=run_accession_and_fastq_ftp_table.txt
-  
-  mkdir fastqs
-  
-  for exp in WT SNF2; do
-    for exp_num in 1 2 3; do
-      accession_nums=$(cat sample_mapping.tsv | grep $exp | grep -P &quot;\s$exp_num$&quot; | cut -f1)
-      for acc_num in $accession_nums ; do
-        ftp=$(egrep $acc_num run_accession_and_fastq_ftp_table.txt | cut -f2)
-        wget ftp://$ftp -P &quot;fastqs/${exp}_${exp_num}&quot;
-      done
-    done
-  done
-fi</code></pre>
-<p>Preliminary <code>FastQC</code> quality control can also be performed, followed by culmination of the files with <code>MultiQC</code> for evaluation in a single <code>html</code> report.</p>
-<pre class="bash"><code>fastq_files=$(find fastqs/ -name *.fastq.gz | xargs readlink -f)
-
-for file in $fastq_files ; do
-  fastqc $file --noextract 
-done
-
-multiqc -dd 1 fastqs</code></pre>
+<p>The Gierlinkski Dataset can be downloaded via the script linked below.</p>
+<p><a href="https://raw.githubusercontent.com/jakesauter/ANGSD_STAR_BWA/main/scripts/slurm_gierlinski_download_and_qc_script.sh">slurm_gierlinski_download_and_qc_script.sh</a></p>
 </div>
 </div>
 

@@ -3,9 +3,9 @@
     "path": "~/Documents/Weill_Cornell/ANGSD/homework/homework_4/R/star_and_bwa.rmd",
     "project_path": "R/star_and_bwa.rmd",
     "type": "r_markdown",
-    "hash": "2565275375",
+    "hash": "1826252895",
     "contents": "",
-    "dirty": false,
+    "dirty": true,
     "created": 1613168380417.0,
     "source_on_save": false,
     "relative_order": 1,
@@ -13,11 +13,11 @@
         "tempName": "Untitled1"
     },
     "folds": "",
-    "lastKnownWriteTime": 1613172912,
+    "lastKnownWriteTime": 1613174084,
     "encoding": "UTF-8",
     "collab_server": "",
     "source_window": "",
-    "last_content_update": 1613172912268,
+    "last_content_update": 1613174194946,
     "read_only": false,
     "read_only_alternatives": []
 }

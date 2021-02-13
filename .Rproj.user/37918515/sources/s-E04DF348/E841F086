@@ -1,0 +1,21 @@
+{
+    "id": "E841F086",
+    "path": "~/Documents/Weill_Cornell/ANGSD/homework/homework_4/scripts/slurm_gierlinski_download_and_qc_script.sh",
+    "project_path": "scripts/slurm_gierlinski_download_and_qc_script.sh",
+    "type": "sh",
+    "hash": "3331771053",
+    "contents": "",
+    "dirty": false,
+    "created": 1613174282901.0,
+    "source_on_save": false,
+    "relative_order": 2,
+    "properties": {},
+    "folds": "",
+    "lastKnownWriteTime": 1613175553,
+    "encoding": "UTF-8",
+    "collab_server": "",
+    "source_window": "",
+    "last_content_update": 1613175553381,
+    "read_only": false,
+    "read_only_alternatives": []
+}

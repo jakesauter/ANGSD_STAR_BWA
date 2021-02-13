@@ -21,7 +21,16 @@ Write a script that will: (3pt)
 
 ### **Retrieving the Gierlinkski Dataset**
 
-The Gierlinkski Dataset can be downloaded via the script below.
+The Gierlinkski Dataset can be downloaded via the script linked below.
+
+[slurm_gierlinski_download_and_qc_script.sh](https://raw.githubusercontent.com/jakesauter/ANGSD_STAR_BWA/main/scripts/slurm_gierlinski_download_and_qc_script.sh)
+
+
+### Running BWA on One Sample
+
+We will choose `ERR458497.fastq.gz` (`WT_1`, `Lane 5`) as
+our sample to run as input to BWA. 
+
 
 ```{bash, eval=FALSE}
 #! /bin/bash -l
@@ -29,70 +38,51 @@ The Gierlinkski Dataset can be downloaded via the script below.
 #SBATCH  --partition=angsd_class
 #SBATCH  --nodes=1
 #SBATCH  --ntasks=1
-#SBATCH  --job-name=gierlinski_data_gen
+#SBATCH  --job-name=gierlinski_bwa
 #SBATCH  --time=06:00:00    # HH/MM/SS
 #SBATCH  --mem=16G 
 #SBATCH --output=%x.%j.out
 #SBATCH --error=%x.%j.err
 
+spack  load  bwa@0 .7.15% gcc@6 .3.0
 
+bwa  index -p sacCer3_BWAindex/sacCer3  sacCer3.fa
 
-user=$(whoami)
-dataset_dir="/athena/angsd/scratch/${user}/gierlinkski"
-
-
-if [ -d "$dataset_dir" ] ; then 
-  echo -e '\n\n\n${dataset_dir} already exists! Please remove and re-run script!\n\n\n'
-  exit
-fi
-
-rm -r $dataset_dir ; mkdir -p $dataset_dir ; cd $dataset_dir
-
-if [ $dataset_dir != $PWD ] ; then
-  echo "Aborting, not in the correct directory"
-  exit
-fi
-
-
-echo -e "\n\n\nDownloading Data to ${dataset_dir}...\n\n\n"
-
-wget "https://ndownloader.figshare.com/files/2194841" --output-document=sample_mapping.tsv
-
-wget "https://www.ebi.ac.uk/ena/portal/api/filereport?accession=PRJEB5348&result=read_run&fields=run_accession,fastq_ftp&format=tsv&download=true" --output-document=run_accession_and_fastq_ftp_table.txt
-
-mkdir fastqs
-
-for exp in WT SNF2; do
-for exp_num in 1 2 3; do
-  accession_nums=$(cat sample_mapping.tsv | grep $exp | grep -P "\s$exp_num$" | cut -f1)
-  for acc_num in $accession_nums ; do
-    ftp=$(egrep $acc_num run_accession_and_fastq_ftp_table.txt | cut -f2)
-    wget ftp://$ftp -P "fastqs/${exp}_${exp_num}"
-  done
-done
-done
-
-
-fastq_files=$(find fastqs/ -name *.fastq.gz | xargs readlink -f)
-
-for file in $fastq_files ; do
-  fastqc $file --noextract 
-done
-
-multiqc -dd 1 fastqs
-
-
-dirs=$(ls -d  fastqs/* | xargs realpath)
-
-for dir in $dirs ; do
-  basename=$(basename $dir)
-  filename=$(echo -e "${dir}/${basename}_combined.fastq")
-  zcat *.fastq.gz > $filename ; gzip $filename
-done
+bwa  mem  referenceGenomes/sacCer3_BWAindex/sacCer3 gierlinski/fastq/ERR458493.fastq.gz > gierlinski/alignments/ERR458493.bwa.sam
 ```
 
 
+### **Running STAR on the Same Sample**
 
+```{bash, eval=FALSE}
+#! /bin/bash -l
+
+#SBATCH  --partition=angsd_class
+#SBATCH  --nodes=1
+#SBATCH  --ntasks=1
+#SBATCH  --job-name=gierlinski_star
+#SBATCH  --time=06:00:00    # HH/MM/SS
+#SBATCH  --mem=16G 
+#SBATCH --output=%x.%j.out
+#SBATCH --error=%x.%j.err
+
+spack  load  star@2 .7.0e
+
+STAR --runMode  genomeGenerate \
+     --runThreadN 1 \
+     --genomeDir  sacCer3_STARindex \
+     --genomeFastaFiles  sacCer3.fa \
+     --sjdbGTFfile  sacCer3.sgd.gtf \
+     --sjdbOverhang  99
+  
+STAR --runMode  alignReads \
+  --runThreadN 1 \
+  --genomeDir  referenceGenomes/sacCer3_STARindex \
+  --readFilesIn  gierlinski/fastq/ERR458493.fastq.gz \
+  --readFilesCommand  zcat \
+  --outFileNamePrefix  gierlinski/alignments/ERR458493. \
+  --outSAMtype  BAM  SortedByCoordinate
+```
 
 
 
