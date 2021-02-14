@@ -1,0 +1,106 @@
+[jns4001@buddy bwa_alignments]$ /softlib/apps/EL7/BamQC/bin/bamqc --help 
+
+        BamQC - A high throughput mapped sequence QC analysis tool
+
+SYNOPSIS
+
+    bamqc bamfile1 .. bamfileN | <folder containing SAM/BAM mapped files> 
+
+    bamqc [-o output dir] [--(no)extract] [-f file.gtf] 
+           bamfile1 .. bamfileN | <folder containing SAM/BAM mapped files> 
+           
+    bamqc [-o output dir] [--(no)extract] [-g genome_dir] 
+           bamfile1 .. bamfileN | <folder containing SAM/BAM mapped files>          
+
+    bamqc [-o output dir] [--(no)extract] [-p species -e assembly] 
+           bamfile1 .. bamfileN | <folder containing SAM/BAM mapped files>                 
+
+DESCRIPTION
+
+    BamQC reads a set of mapped BAM files and produces from each one a quality
+    control report consisting of a number of different modules, each one of 
+    which will help to identify a different potential type of problem in your
+    data.
+    
+    If no files to process are specified on the command line then the program
+    will start as an interactive graphical application.  If files are provided
+    on the command line then the program will run with no user interaction
+    required.  In this mode it is suitable for inclusion into a standardised
+    analysis pipeline.
+    
+    The options for the program as as follows:
+
+    -f --gff        Use a specified annotation file as annotation set
+    
+    -g --genome     The directory containing species/assembly to use. If the 
+                    couple species assembly does not exist, BamQC will try to 
+                    download it.
+    
+    -s --species    The genome species to use. If the couple species assembly
+                    does not exist, BamQC will try to download it.
+    
+    -a --assembly   The genome assembly associated to the species to use. 
+                    If the couple species assembly does not exist, BamQC 
+                    will try to download it.  
+     
+    -b --available [Pattern] List the genomes available on the Babraham Server
+    				which are filtered using the string Pattern if this is provided. 
+    				This string is considered as a substring in the pattern matching. 
+    				For instance, the pattern=m?s will retrieve mus, mis, musculus, 
+    				humus. Therefore its behaviour is equivalent to *m?s*.
+    
+    -e --saved      List the saved genomes
+    
+    -h --help       Print this help file and exit
+    
+    -v --version    Print the version of the program and exit
+    
+    -o --outdir     Create all output files in the specified output directory.
+                    Please note that this directory must exist as the program
+                    will not create it.  If this option is not set then the 
+                    output file for each sequence file is created in the same
+                    directory as the sequence file which was processed.
+                                       
+    --extract       If set then the zipped output file will be uncompressed in
+                    the same directory after it has been created.  By default
+                    this option will be set if bamqc is run in non-interactive
+                    mode.
+                    
+    -j --java       Provides the full path to the java binary you want to use to
+                    launch bamqc. If not supplied then java is assumed to be in
+                    your path.
+                   
+    --noextract     Do not uncompress the output file after creating it.  You
+                    should set this option if you do not wish to uncompress
+                    the output when running in non-interactive mode.
+                    
+    --nogroup       Disable grouping of bases for reads >50bp. All reports will
+                    show data for every base in the read.  WARNING: Using this
+                    option will cause bamqc to crash and burn if you use it on
+                    really long reads, and your plots may end up a ridiculous size.
+                    You have been warned!
+                                        
+    -t --threads    Specifies the number of files which can be processed
+                    simultaneously.  Each thread will be allocated 250MB of
+                    memory so you shouldn't run more threads than your
+                    available memory will cope with, and not more than
+                    6 threads on a 32 bit machine
+                                      
+    -l --limits     Specifies a non-default file which contains a set of criteria
+                    which will be used to determine the warn/error limits for the
+                    various modules.  This file can also be used to selectively 
+                    remove some modules from the output all together.  The format
+                    needs to mirror the default limits.txt file found in the
+                    Configuration folder.
+                    
+   -q --quiet       Supress all progress messages on stdout and only report errors.
+   
+   -d --dir         Selects a directory to be used for temporary files written when
+                    generating report images. Defaults to system temp directory if
+                    not specified.
+                    
+BUGS
+
+    Any bugs in bamqc should be reported either to simon.andrews@babraham.ac.uk
+    or in www.bioinformatics.babraham.ac.uk/bugzilla/
+            

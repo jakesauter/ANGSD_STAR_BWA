@@ -60,8 +60,7 @@ Not that we have the BWA index generated, we can use `bwa mem`
 for performing an alignment on our file of interest. 
 
 ```{bash, eval=FALSE}
-fastq_prefix="ERR458497"
-sample_class="WT_1"
+fastq_prefix="WT_1_combined"
 fastq_file="${gierlinski_dataset}/fastqs/${sample_class}/${fastq_prefix}.fastq.gz"
 alignment_file="${gierlinski_dataset}/bwa_alignments/${fastq_prefix}.bwa.sam"
 
@@ -83,23 +82,49 @@ can be found below.
 #SBATCH --output=%x.%j.out
 #SBATCH --error=%x.%j.err
 
+
 spack load bwa@0.7.15% gcc@6.3.0
+spack load samtools@1.9% gcc@6.3.0
 
 user=$(whoami)
-fastq_prefix="ERR458497"
-sample_class="WT_1"
-fastq_file="${gierlinski_dataset}/fastqs/${sample_class}/${fastq_prefix}.fastq.gz"
 gierlinski_dataset="/athena/angsd/scratch/${user}/gierlinski"
-alignment_file="${gierlinski_dataset}/bwa_alignments/${fastq_prefix}.bwa.sam"
-bwa_index_file="${gierlinski_dataset}/sacCer3_BWAindex/sacCer3"
-reference_file="${gierlinski_dataset}/sacCer3_ref/sacCer3.fa"
 
-mkdir -p `dirname $reference_file`
-mkdir -p `dirname $alignment_file`
+fastq_prefix="WT_1_combined"
+fastq_file=$(find ${gierlinski_dataset}/fastqs/ -name ${fastq_prefix}.fastq.gz)
+
+if [ ! -f "$fastq_file" ] ; then
+  echo -e "\n\nA fastq file with the given prefix ${fastq_prefix} could not be"
+  echo -e "found in the datset directory: ${gierlinski_dataset}! Aborting!\n\n"
+  exit
+else
+  echo -e "\n\nFastq file ${fastq_file} found! Now beginging alignment ...\n\n"
+fi
+
+sam_alignment_file="${bwa_alignment_dir}/${fastq_prefix}.bwa.sam"
+bwa_index_file="${gierlinski_dataset}/sacCer3_BWAindex/sacCer3"
 mkdir -p `dirname $bwa_index_file`
+
+reference_file="${gierlinski_dataset}/sacCer3_ref/sacCer3.fa"
+bwa_alignment_dir="${gierlinski_dataset}/bwa_alignments"
+samtools_qc_dir="${gierlinski_dataset}/samtools_qc"
+mkdir -p `dirname $reference_file`
+mkdir -p $bwa_alignment_dir
+mkdir -p $samtools_qc_dir
 cp /home/luce/angsd/referenceGenomes/sacCer3.fa $reference_file 
+
 bwa index -p $bwa_index_file $reference_file
-bwa mem $bwa_index_file $fastq_file > $alignment_file
+bwa mem $bwa_index_file $fastq_file > $sam_alignment_file
+
+bam_output_file="${bwa_alignment_dir}/${fastq_prefix}.bwa.bam"
+bwa_sorted_bam="${bwa_alignment_dir}/${fastq_prefix}.bwa.sorted.bam"
+samtools view -b $sam_alignment_file -o $bam_output_file
+samtools sort $bam_output_file -o $bwa_sorted_bam
+samtools index $bwa_sorted_bam 
+
+rm $sam_alignment_file
+
+samtools stats $bwa_sorted_bam  > $samtools_qc_dir/${fastq_prefix}.bwa.bam.stats
+samtools flagstat $bwa_sorted_bam > $samtools_qc_dir/${fastq_prefix}.bwa.bam.flagstats
 ```
 
 
@@ -121,10 +146,19 @@ spack load star@2.7.0e
 spack load samtools@1.9% gcc@6.3.0
 
 user=$(whoami)
-fastq_prefix="ERR458497"
-sample_class="WT_1"
-fastq_file="${gierlinski_dataset}/fastqs/${sample_class}/${fastq_prefix}.fastq.gz"
 gierlinski_dataset="/athena/angsd/scratch/${user}/gierlinski"
+
+fastq_prefix="WT_1_combined"
+fastq_file=$(find ${gierlinski_dataset}/fastqs/ -name ${fastq_prefix}.fastq.gz)
+
+if [ ! -f "$fastq_file" ] ; then
+  echo -e "\n\nA fastq file with the given prefix ${fastq_prefix} could not be"
+  echo -e "found in the datset directory: ${gierlinski_dataset}! Aborting!\n\n"
+  exit
+else
+  echo -e "\n\nFastq file ${fastq_file} found! Now beginging alignment ...\n\n"
+fi
+
 star_index_dir="${gierlinski_dataset}/sacCer3_STARindex"
 reference_file="${gierlinski_dataset}/sacCer3_ref/sacCer3.fa"
 gtf_reference_file="${gierlinski_dataset}/sacCer3_ref/sacCer3.sgd.gtf"
@@ -136,13 +170,14 @@ mkdir -p $samtools_qc_dir
 mkdir -p `dirname $reference_file`
 mkdir -p `dirname $alignment_file`
 
-cp /home/luce/angsd/referenceGenomes/sacCer3.fa $reference_file 
-cp /home/luce/angsd/referenceGenomes/sacCer3.sgd.gtf $gtf_reference_file
+cp /home/luce/angsd/referenceGenomes/sacCer3.sgd.gtf $gtf_reference_file 
+
+cd $gierlinski_dataset
 
 STAR --runMode  genomeGenerate \
      --runThreadN 6 \
      --genomeDir  $star_index_dir \
-     --genomeFastaFiles  $reference_file \
+     --genomeFastaFiles $reference_file \
      --sjdbGTFfile  $gtf_reference_file \
      --sjdbOverhang  99
   
@@ -153,27 +188,67 @@ STAR --runMode  alignReads \
   --readFilesCommand zcat \
   --outFileNamePrefix $alignment_file \
   --outSAMtype BAM SortedByCoordinate
-
+  
+  
 alignment_path=$(dirname $alignment_file)
-alignment_file=$(ls ${alignment_path}/*.bam)
-alignment_base=$(basename $alignment_file)
+star_sorted_bam=$(ls ${alignment_path}/*.bam)
 
-samtools sort $alignment_file -o "${alignment_file}.sorted"
+samtools index $star_sorted_bam
 
-samtools stats $alignment_file  > $samtools_qc_dir/${alignment_base}.stats
-samtools flagstat $alignment_file > $samtools_qc_dir/${alignment_base}.flagstats
+samtools stats $star_sorted_bam  > $samtools_qc_dir/${fastq_prefix}.star.bam.stats
+samtools flagstat $star_sorted_bam > $samtools_qc_dir/${fastq_prefix}.star.bam.flagstats
 ```
 
 
-## **Subset Only Chromosome I Aligned Reads** 
+### **UCSD Integrated Genome Viewer (IGV)**
+
+BWA only, can see where each read came from and information about it. 
+
+![](/home/x1/Documents/Weill_Cornell/ANGSD/homework/homework_4/imgs/IGV_verification_bwa.png)
+
+For verification, STAR and BWA alignments correspond very well. 
+
+![](/home/x1/Documents/Weill_Cornell/ANGSD/homework/homework_4/imgs/bwa_star_concordance.png)
+
+
+### **Subset Only Chromosome I Aligned Reads**
+
+```{bash, eval=FALSE}
+samtools view [options] in.sam|in.bam|in.cram [region...]
 
 
 ```{bash, eval=FALSE}
-samtools view ERR458497.bwa.bamAligned.sortedByCoord.out.bam | grep chrI > ERR458497.bwa.chrI.sam
+user=$(whoami)
+gierlinski_dataset="/athena/angsd/scratch/${user}/gierlinski"
 
-samtools view ERR458497.bwa.bamAligned.sortedByCoord.out.bam | grep chrI > ERR458497.bwa.chrI.sam
+fastq_prefix="WT_1_combined"
 
+
+bwa_alignment_file="${gierlinski_dataset}/bwa_alignments/${fastq_prefix}.bwa.sorted.bam"
+bwa_filtered_output_file="${gierlinski_dataset}/bwa_alignments/${fastq_prefix}.bwa.chrI.sam"
+
+
+star_alignment_file="${gierlinski_dataset}/star_alignments/${fastq_prefix}.star.bamAligned.sortedByCoord.out.bam"
+star_filtered_output_file="${gierlinski_dataset}/star_alignments/${fastq_prefix}.star.bamAligned.sortedByCoord.chrI.sam"
+
+
+samtools view $bwa_alignment_file chrI > $bwa_filtered_output_file
+samtools view $star_alignment_file chrI > $star_filtered_output_file
 ```
+
+    
+```{bash, eval=FALSE}
+head -n 10 $bwa_filtered_output_file
+tail -n 10 $bwa_filtered_output_file
+```
+
+
+
+```{bash, eval=FALSE}
+head -n 10 $star_alignment_file
+tail -n 10 $star_alignment_file
+```
+
 
 ## **BWA vs STAR**
 
@@ -181,8 +256,84 @@ Compare the output from BWA and STAR, and summarize any results or differences.
 
     Which optional SAM fields does STAR add and what do they represent? (1pt)
     Which optional SAM fields does BWA add and what do they represent? (1pt)
+    
+    
+```{bash, eval=FALSE}
+spack load samtools@1.9% gcc@6.3.0
+
+samtools view -H ERR458497.bwa.sorted.bam
+```
+
+```{bash, eval=FALSE}
+samtools view -H ERR458497.star.bamAligned.sortedByCoord.out.bam
+```
+  
+![](/home/x1/Documents/Weill_Cornell/ANGSD/homework/homework_4/imgs/bwa_vs_star_header.png)
+  
+
+
+```{bash, eval=FALSE}
+samtools view ERR458497.bwa.sorted.bam | head -n 5
+```
+
+```{bash, eval=FALSE}
+ERR458497.540750	16	chrI	1949	0	51M	*	0	0	CCGTAGTTGAAAACGGCTTCAGCAACTTCGACTGGGTAGGTTTCAGTTGGG	HFHD@CF>GED?0GECDF?>IHHHFDGDFFCF@IFHEADAFB>DA2A1?@@	NM:i:0	MD:Z:51	AS:i:51XS:i:51
+```
+
+
+```{bash, eval=FALSE}
+samtools view ERR458497.star.bamAligned.sortedByCoord.out.bam | head -n 5
+```
+
+```{bash, eval=FALSE}
+ERR458497.431825	0	chrI	1815	0	51M	*	0	0	CGATAGTGTAGATACCGTCCTTGGATAGAGCACTGGAGATGGCTGGCTTTA	@C;DDDFFHHGHFJGHIGHIJIJJIJJCHIIGIJIJDHGHJJIJJIJIJIJ	NH:i:7	HI:i:1	AS:i:50nM:i:0
+```
+
+
+[BWA Manual](http://bio-bwa.sourceforge.net/bwa.shtml)
+
+[STAR Manual](https://physiology.med.cornell.edu/faculty/skrabanek/lab/angsd/lecture_notes/STARmanual.pdf)
+
+
+![](/home/x1/Documents/Weill_Cornell/ANGSD/homework/homework_4/imgs/bwa_vs_star_attributes.png)
+
+From above, BWA listed the following output during out analysis: 
+
+
+```{bash, eval=FALSE}
+
+NM:i:0 -- Edit distance 
+
+MD:Z:51	-- Mismatching positions/bases
+
+AS:i:51	-- Alignment Score
+
+XS:i:51 -- Suboptimal Alignemt Score ; X indicates that the
+                tag is specific to BWA.
+```
+
+And STAR Listed: 
+
+```{bash, eval=FALSE}
+NH:i:3 -- Number of reported alignments that contain the query in the current record 
+
+HI:i: -- Query hit index 
+
+AS:i:50	-- Alignment score generated by aligner 
+
+Unique to STAR
+
+(NM usually Edit distance to the reference)
+
+nM:i:0 -- number of mismatches per (paired) alignment, not 
+    to be confused with NM, which is the number of mismatches
+    in each mate.
+```
+
+
 
 ## **BamQC**
+
 Run bamqc on your BAM files (Note: this is a tool that’s not available in spack, but you can use it via /softlib/apps/EL7/BamQC/bin/bamqc after logging on to a compute node). You will need to figure out how to run this on your own (hint: /softlib/apps/EL7/BamQC/bin/bamqc --help).
 
     Describe 3 differences between the bamqc results for both the BWA and the STAR output files. (3pt)
@@ -192,15 +343,183 @@ Run bamqc on your BAM files (Note: this is a tool that’s not available in spac
 /softlib/apps/EL7/BamQC/bin/bamqc --help 
 ```
 
+As apart of this output, we can read the DESCRIPTION section
+to understand more about the purpose and logic of this tool. 
+
+```{bash, eval=FALSE}
+DESCRIPTION
+
+    BamQC reads a set of mapped BAM files and produces from each one a quality control report consisting of a number of different modules, each one of which will help to identify a different potential type of problem in your data.
+    
+    If no files to process are specified on the command line then the program will start as an interactive graphical application.  If files are provided on the command line then the program will run with no user interaction required.  In this mode it is suitable for inclusion into a standardised analysis pipeline.
+
+```
+
+
+We can see that this tool could be helpful for understanding
+the quality of our BAM files that we have just produced
+from `BWA` and `STAR`. In order to use `BamQC`, we must pass
+appropriate parameters to get reasonble results. 
+Garbage in, garbage out. 
+
+Looking more closely into the result of the `--help` command, 
+we find that we can list all reference genomes already 
+available to use through the Babraham Server. Since we are
+looking for the genome of Saccharomyces cerevisiae, we 
+will filter the output for  containing `"cerevisiae"`. 
+
+```{bash, eval=FALSE}
+/softlib/apps/EL7/BamQC/bin/bamqc --available 
+```
+
+We will find the following line in the output. 
+
+```{bash, eval=FALSE}
+Saccharomyces cerevisiae [ EF4 | R64-1-1 | SGD1.01 | SGD1 | SGD1_new ]
+```
+
+This line indicates to us that we can query the `--species` parameter
+with `Saccharomyces cerevisiae`, with any of the listed `--assembly`
+options. Upon inspection of the [website hosting the genomes](https://www.bioinformatics.babraham.ac.uk/seqmonk/genomes/Saccharomyces%20cerevisiae/), **EF4** appears to be the newest. 
+
+![](/home/x1/Documents/Weill_Cornell/ANGSD/homework/homework_4/imgs/yeast_index_seqmonk.png)
+
+In order to download this genome for use, we can use the following command. 
+
+```{bash, eval=FALSE}
+/softlib/apps/EL7/BamQC/bin/bamqc -s "Saccharomyces cerevisiae" -a "EF4"
+```
+
+We can then see this saved genome with the `--saved` command.
+
+```{bash, eval=FALSE}
+/softlib/apps/EL7/BamQC/bin/bamqc --saved
+```
+
+We can see where our reference has downloaded to. 
+
+```{bash, eval=FALSE}
+Downloaded genomes:
+/home/jns4001/BamQC_files/genomes/Saccharomyces cerevisiae
+```
+
+
+We will now call `BamQC` with our new saved genome and the sorted `BAM` files that we have previously generated through both `BWA MEM` and `STAR`.
+
+
+
+```{bash, eval=FALSE}
+species="Saccharomyces cerevisiae"
+assembly="EF4"
+bwa_sorted_bam="/athena/angsd/scratch/jns4001/gierlinski/bwa_alignments/WT_1_combined.bwa.sorted.bam"
+start_sorted_bam="/athena/angsd/scratch/jns4001/gierlinski/star_alignments/WT_1_combined.star.bamAligned.sortedByCoord.out.bam"
+
+/softlib/apps/EL7/BamQC/bin/bamqc -s $species --a $assembly $bwa_sorted_bam
+/softlib/apps/EL7/BamQC/bin/bamqc -s $species -a $assembly $star_sorted_bam
+```
+
+The result of running this command is a `BamQC` generated `.html` file in the same directory as the input files. In our case, these files are 
+
+* BWA: 
+* STAR: 
+
+Three differences observed between STAR and BWA: 
+
+**TODO: Waiting until I use data from all lanes to evaluate the differences in these reports \**
+
+1. 
+
+
+2. 
+
+
+3. 
+
+
 
 ## **Alignment Score vs Mapping Quality**
 
+[seQanswers](http://seqanswers.com/forums/showthread.php?t=66634)
+
 Explain the difference between alignment score and mapping quality in SAM/BAM files. How does the interpretation of the mapping quality field differ between STAR and BWA
+
+As indicated by this [biostars answer](https://www.biostars.org/p/179457/), alignment score tells you how similar the read is to the reference, though this should not be taken at face value. Mapping quality is a more dependable metric that tells you how confident you can be that the read comes from the reported position.
+
+A situation in which this difference is important: You can have high AS and low MAPQ if the read aligns perfectly at multiple positions, and you can have low AS and high MAPQ if the read aligns with mismatches but still the reported position is still much more probable than any other.
+
+From the STAR manual: 
+
+The mapping quality MAPQ (column 5) is 255 for uniquely mapping reads, and int(-10*log10(1-1/Nmap)) for multi-mapping reads.  This scheme is same as the one used by TopHat and is com-patible  with  Cufflinks.    The  default  MAPQ=255  for  the  unique  mappers  maybe  changed  with--outSAMmapqUniqueparameter (integer 0 to 255) to ensure compatibility with downstream toolssuch as GATK.
+
+From the BWA manual: 
+
+
+
 
 ## **Multi-Mapping Reads vs Split-Reads**
 
 What is the difference between a multi-mapping read, and a split read? Find a read that has been split in STAR. How did BWA handle the mapping of that read? (2pt)
 
+Multi-mapping read is a read that has mapped to multiple locations in the 
+reference, while a split read is a read is mapped to two ends of different
+portions of the reference. 
+
+[split reads](https://bioinformatics.stackexchange.com/questions/5233/what-are-split-reads-and-intron-clusters#5234)
+
+
+**Finding a split read in STAR**
+
+We can identify a split read in star by finding a read that
+has a large "N" placement to indicate an intron has been 
+spliced out. 
+
+ERR458497.799793	16	chrIII	177875	255	32M307N19M	*	0	0	AACTTGGGAATTGTCACGAGCTTGAACAACGTTAGACATGGCGGGTTCTTG	FCGGIJJHEIJJJJJIJJJJIJJJIGIJIJIJJJJIJIHHGHGFFEFFC@C	NH:i:1	HI:i:1	AS:i:51	nM:i:0
+
+In this read on Chromosome 3, it has matched 32 bases, followed by 307 introns spliced, 
+with the remaining 19 matches occurring after.
+
+```{bash, eval=FALSE}
+samtools view ERR458497.bwa.sorted.bam | egrep AACTTGGGAATTGTCACGAGCTTGAACAACGTTAGACATGGCGGGTTCTTG
+ERR458497.51047	16	chrIII	177875	60	32M19S	*	0	0	AACTTGGGAATTGTCACGAGCTTGAACAACGTTAGACATGGCGGGTTCTTG	
+```
+
+It appears that `BWA` has identified the same 32 matching nucleotides, however due to 
+`BWA` not being splice aware, it calls the remainder of the bases in the
+sequence alignment as a soft clip (S).
+
+
 ## **Removing Unampped Reads From BWA**
 
 How can you remove the unmapped reads from the BWA output? (hint: go back to the notes where FLAG values were explained) (1pt)
+
+The `u` flag can be used to filter out sequences that "the query sequence itself is unmapped".
+This flag is mapped to integer `4`, and thus can be used in `samtools view`
+
+```{bash, eval=FALSE}
+samtools view -F 4 -b -o ERR458497.bwa.sorted.mapped.bam ERR458497.bwa.sorted.bam
+```
+
+Now if we filter to "only include reads with all  of the FLAGs in INT present " with 
+the `-f` option, our new file with supposedly only mapped reads should 
+return no reads at all. 
+
+```{bash, eval=FALSE}
+samtools view -f 4 ERR458497.bwa.sorted.mapped.bam
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

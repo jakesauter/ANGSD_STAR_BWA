@@ -1,2 +1,7 @@
 .Rproj.user
-
+*.bam
+*.sam
+*.tab
+*.out
+*.bai
+*.tar
