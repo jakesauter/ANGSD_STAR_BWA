@@ -29,7 +29,7 @@ These scripts will ensure that the resultant files will:
 
 The Gierlinkski Dataset can be downloaded via [this slurm-submittable script](https://raw.githubusercontent.com/jakesauter/ANGSD_STAR_BWA/main/scripts/slurm_gierlinski_download_and_qc_script.sh).
 
-
+raw.githubusercontent.com
 ### **Running BWA on WT_1**
 
 We will choose **Wild-Type biological replicate 1** (`WT_1`) as
@@ -188,7 +188,7 @@ samtools flagstat $star_sorted_bam > $samtools_qc_dir/${fastq_prefix}.star.bam.f
 
 As seen below, the UCSD [Integrated Genomics Viewer (IGV)](https://igv.org/) can be used to view our **sorted**, **indexed** `.bam` files. The image below shows only a small portion of the output from the previous `BWA` alignment, though illustrates how each read alignment can be interacted with to see all the relevant techincal details about it.
 
-![](/home/x1/Documents/Weill_Cornell/ANGSD/homework/homework_4/imgs/IGV_verification_bwa.png)
+![](https://raw.githubusercontent.com/jakesauter/ANGSD_STAR_BWA/main/imgs/IGV_verification_bwa.png)
 
 **Multiple Tracks**
 
@@ -197,7 +197,7 @@ uploaded at once, we can use this functionality to check that the
 alignments we have performed with `BWA` and `STAR` respectively
 are in general agreement as a first rough QC measure and sanity check.
 
-![](/home/x1/Documents/Weill_Cornell/ANGSD/homework/homework_4/imgs/bwa_star_concordance.png)
+![](https://raw.githubusercontent.com/jakesauter/ANGSD_STAR_BWA/main/imgs/bwa_star_concordance.png)
 
 
 ## **Subsetting Chromosomal Reads**
@@ -283,7 +283,7 @@ In order to more easily compare these outputs, I have placed
 them side with the `BWA` header on the **left** and the 
 `STAR` header on the **right**.
   
-![](/home/x1/Documents/Weill_Cornell/ANGSD/homework/homework_4/imgs/bwa_vs_star_header.png)
+![](https://raw.githubusercontent.com/jakesauter/ANGSD_STAR_BWA/main/imgs/bwa_vs_star_header.png)
 
 We can see that the headers do not contain many differences, 
 though if parsing these files manually it is important to keep
@@ -328,7 +328,7 @@ In these documents, we can find the excerpts below. Again, information regarding
 is on the **right**. 
 
 
-![](/home/x1/Documents/Weill_Cornell/ANGSD/homework/homework_4/imgs/bwa_vs_star_attributes.png)
+![](https://raw.githubusercontent.com/jakesauter/ANGSD_STAR_BWA/main/imgs/bwa_vs_star_attributes.png)
 
 From these excerpts, we can now dissect the differences in 
 optional SAM field output. From previously printing an 
@@ -403,7 +403,7 @@ This line indicates to us that we can query the `--species` parameter
 with `Saccharomyces cerevisiae`, with any of the listed `--assembly`
 options. Upon inspection of the [website hosting the genomes](https://www.bioinformatics.babraham.ac.uk/seqmonk/genomes/Saccharomyces%20cerevisiae/), **EF4** appears to be the newest. 
 
-![](/home/x1/Documents/Weill_Cornell/ANGSD/homework/homework_4/imgs/yeast_index_seqmonk.png)
+![](https://raw.githubusercontent.com/jakesauter/ANGSD_STAR_BWA/main/imgs/yeast_index_seqmonk.png)
 
 In order to download this genome for use, we can use the following command. 
 
@@ -478,7 +478,7 @@ clips generated in the alignments of `BWA`.
 
 **Left: `BWA`, Right: `STAR`**
 
-![](/home/x1/Documents/Weill_Cornell/ANGSD/homework/homework_4/imgs/soft_clip_len_dist_comparison.png)
+![](https://raw.githubusercontent.com/jakesauter/ANGSD_STAR_BWA/main/imgs/soft_clip_len_dist_comparison.png)
 
 **3.)** **Mapping Quality Implementations** 
 
@@ -491,7 +491,7 @@ assigned a **255** when using `STAR`.
 
 **Left: `BWA`, Right: `STAR`**
 
-![](/home/x1/Documents/Weill_Cornell/ANGSD/homework/homework_4/imgs/mapq_dist_comparison.png)
+![](https://raw.githubusercontent.com/jakesauter/ANGSD_STAR_BWA/main/imgs/mapq_dist_comparison.png)
 
 
 ## **Alignment Score vs Mapping Quality**

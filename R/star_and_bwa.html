@@ -1543,9 +1543,7 @@ div.tocify {
 <div id="retrieving-the-gierlinkski-dataset" class="section level3">
 <h3><strong>Retrieving the Gierlinkski Dataset</strong></h3>
 <p>The Gierlinkski Dataset can be downloaded via <a href="https://raw.githubusercontent.com/jakesauter/ANGSD_STAR_BWA/main/scripts/slurm_gierlinski_download_and_qc_script.sh">this slurm-submittable script</a>.</p>
-</div>
-<div id="running-bwa-on-wt_1" class="section level3">
-<h3><strong>Running BWA on WT_1</strong></h3>
+<p>raw.githubusercontent.com ### <strong>Running BWA on WT_1</strong></p>
 <p>We will choose <strong>Wild-Type biological replicate 1</strong> (<code>WT_1</code>) as our sample to run as input to <code>BWA</code>.</p>
 <p>In order to run <code>BWA</code>, we first need the <strong>.fasta</strong> file that contains the reference genome we are aligning to. For this exercise this has been obtained for us and we can copy from <code>/home/luce/angsd/referenceGenomes/sacCer3.fa</code></p>
 <p>The following script when executed will retrieve this reference into the project data-lake architecture. It will then build our <code>BWA</code> reference using <code>bwa index</code>, followed by performing the alignment process with <code>bwa mem</code>. This script has also been setup as so it is slurm-submittable.</p>
