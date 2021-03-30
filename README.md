@@ -1,14 +1,9 @@
----
-title: "Module 5 Exercise: Aligning FASTQ reads and interpreting the output"
-author: "Jake Sauter"
-date: "2/12/2021"
-output: 
-  html_document: 
-    toc: true
-    toc_float: true
-    keep_md: true
----
+# **Module 5 Exercise: Aligning FASTQ reads and interpreting the output**
 
+
+A report by **Jake Sauter**
+
+date: "2/12/2021"
 
 
 ## **Running `BWA` and `STAR`**
